@@ -1,35 +1,38 @@
+mport streamlit as st
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import gradio as gr
+
+# Başlık ve açıklama
+st.title("Content Relevance Classifier")
+st.write("This app checks the semantic similarity between the given text and a selected content category using a BERT model.")
 
 # BERT modeli
-bert_model = SentenceTransformer("paraphrase-MiniLM-L12-v2")
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("paraphrase-MiniLM-L12-v2")
 
-# Güncel kategoriler
+bert_model = load_model()
+
+# Kategori seçenekleri
 content_options = [
     "People", "Law", "Cryptocurrency", "Politics", "Science",
     "Technology", "Business", "Entertainment", "Investing", "Finance",
     "Environment", "Social", "Economy", "Sports", "Health"
 ]
 
-# Tahmin fonksiyonu
-def semantic_predict(text, category):
-    text_embed = bert_model.encode([text])
-    category_embed = bert_model.encode([category])
-    similarity = cosine_similarity(text_embed, category_embed)[0][0]
-    print(f"🔍 Similarity: {similarity:.3f}")
+# Kullanıcı girişi
+text = st.text_area("Enter your text:", height=200)
+category = st.selectbox("Select a content category:", content_options)
 
-    return "relevant" if similarity >= 0.10 else "non-relevant"
+# Tahmin butonu
+if st.button("Check Relevance"):
+    if text and category:
+        text_embed = bert_model.encode([text])
+        category_embed = bert_model.encode([category])
+        similarity = cosine_similarity(text_embed, category_embed)[0][0]
+        st.write(f"🔍 Similarity Score: {similarity:.3f}")
 
-# Gradio arayüzü
-gr.Interface(
-    fn=semantic_predict,
-    inputs=[
-        gr.Textbox(lines=6, label="Text"),
-        gr.Dropdown(choices=content_options, label="Content Category")
-    ],
-    outputs=gr.Textbox(label="Predicted Relevance"),
-    title="Content Relevance Classifier",
-    description="This model checks semantic similarity between the text and selected content category."
-).launch(share=True)
-
+        result = "✅ Relevant" if similarity >= 0.10 else "❌ Non-relevant"
+        st.subheader(f"Prediction: {result}")
+    else:
+        st.warning("Please enter text and select a category.")
