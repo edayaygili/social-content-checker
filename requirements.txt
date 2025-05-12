@@ -5,4 +5,5 @@ pandas==2.2.2
 streamlit==1.35.0
 gradio==4.27.0
 setuptools>=65.0.0
-huggingface-hub>=0.14.1
+huggingface_hub==0.10.1
+transformers==4.30.2
