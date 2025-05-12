@@ -2,8 +2,6 @@ import streamlit as st
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-import requests
-from io import StringIO
 
 # Modeli yükle
 @st.cache_resource
@@ -12,41 +10,44 @@ def load_model():
 
 model = load_model()
 
-# Veri setini HuggingFace URL'sinden yükle
+# Dataseti yükle
 @st.cache_data
 def load_data():
     url = "https://huggingface.co/datasets/eda12/social-relevance-data/resolve/main/processed_data.csv"
-    response = requests.get(url)
-    data = pd.read_csv(StringIO(response.text))
-    return data
+    return pd.read_csv(url)
 
 df = load_data()
 
-# Sayfa başlığı
+# Arayüz başlığı
 st.title("🔍 AI Content Relevance Checker")
 st.markdown("BERT modeliyle context ve kategori uyumunu değerlendirir.")
 
-# Dataset örneği göster
-with st.expander("📂 Show dataset sample"):
-    st.dataframe(df.head())
+# Kullanıcı veri seçebilir
+st.subheader("1️⃣ Örnek veri seç (isteğe bağlı)")
+row_index = st.slider("Veri Satırı Seç (0 - {})".format(len(df)-1), 0, len(df)-1, 0)
+sample_text = df.loc[row_index, "text"]
+sample_category = df.loc[row_index, "content"]
 
-# Kullanıcıdan giriş al
-context = st.text_area("📝 Context (Text)", height=200)
-unique_categories = sorted(df['content'].dropna().unique())
-category = st.selectbox("📚 Content Category", unique_categories)
+st.text_area("Context (Text)", value=sample_text, height=200, key="context")
+selected_category = st.selectbox(
+    "Content Category",
+    [
+        "People", "Law", "Cryptocurrency", "Politics", "Science",
+        "Technology", "Business", "Entertainment", "Investing", "Finance",
+        "Environment", "Social", "Economy", "Sports", "Health"
+    ],
+    index=max(0, content_options.index(sample_category)) if 'sample_category' in locals() else 0
+)
 
-# Relevance kontrolü
+# Tahmin
 if st.button("Check Relevance"):
-    if context and category:
-        context_embed = model.encode([context])
-        category_embed = model.encode([category])
-        similarity = cosine_similarity(context_embed, category_embed)[0][0]
+    context_embed = model.encode([st.session_state.context])
+    category_embed = model.encode([selected_category])
+    similarity = cosine_similarity(context_embed, category_embed)[0][0]
 
-        st.markdown(f"**🔗 Similarity Score:** `{similarity:.3f}`")
+    st.markdown(f"**Similarity Score:** {similarity:.3f}")
 
-        if similarity >= 0.10:
-            st.success("✅ Relevant")
-        else:
-            st.error("❌ Non-Relevant")
+    if similarity >= 0.10:
+        st.success("✅ Relevant")
     else:
-        st.warning("Please provide both context and category.")
+        st.error("❌ Non-Relevant")
